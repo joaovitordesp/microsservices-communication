@@ -1,0 +1,132 @@
+Com o Maven, você iria realizar o build da aplicação com o comando:
+
+
+
+mvn clean install
+
+
+
+E, caso quisesse pular os testes, utilizaria o comando como:
+
+
+
+mvn clean install -DskipTests
+
+
+
+Para rodar a aplicação utilizando o maven, você poderia utilizar como:
+
+
+
+mvn spring-boot:run
+
+
+
+O Dockerfile ficaria algo parecido com isso:
+
+
+
+FROM maven:3.6.3-jdk-11
+WORKDIR .
+RUN mvn clean install
+EXPOSE 8081
+CMD ["mvn", "spring-boot:run"]
+
+
+E sobre os Dockerfiles, vamos lá.
+
+
+
+O Dockerfile é um arquivo que você cria especificando alguns comandos específicos com instruções para que o Docker crie uma imagem Docker. A partir da criação da imagem você consegue executar o container. Exemplo, no Dockerfile que criamos para a aplicação em Node.js auth-api:
+
+FROM node:14
+WORKDIR .
+COPY package*.json ./
+RUN yarn
+COPY . .
+EXPOSE 8080
+CMD ["node", "app.js"]
+
+Primeiro, eu especifico qual imagem do Node eu quero utilizar, no caso, a 14, em seguida, eu estabeleço que o diretório de trabalho da imagem é o atual com o comando "." com o comando WORKDIR. Então, eu copio todos os arquivos que iniciam como package do diretório em que o Dockerfile está situado para o diretório da aplicação e executo um comando RUN do Dockerfile, que serve para executar algo durante a criação da imagem, no caso, eu rodo o yarn install, pois apenas com o package.json a gente já consegue baixar todas as dependências. Em seguida, eu copio tudo que foi baixado no diretório intermediário para o diretório de trabalho, por isso o "COPY . .", pois enviaremos todos os arquivos criados no node_modules.
+
+Por fim, eu peço pro Dockerfile expor o container na porta 8080, e, por fim, o comando CMD irá executar uma ação quando você tentar rodar o container dessa imagem com um docker run ..., que no nosso caso, é o yarn start.
+
+
+
+Para finalizar, o Dockerfile você apenas executa com o comando docker image build ou docker build. No caso: 
+
+docker imagem build -t auth-api .
+
+
+
+Após a imagem criada, basta executar o container com o docker run ...
+
+
+
+Beleza, e agora o Docker-compose?
+
+
+
+O Docker-compose nada mais é que uma ferramenta para rodar vários containers do Docker ao mesmo tempo, um tipo de orquestrador de containers, você especifica a imagem que quer rodar, o nome do container, as portas, as variáveis de ambiente, a rede do container, entre outras configurações que você desejar para a execução.
+
+Para executar um serviço (container) no Docker-compose, você precisa ter uma imagem criada. Por exemplo, não precisamos de um Dockerfile para executar um banco de dados do PostgreSQL, apenas com a imagem postgres:11 você já consegue utilizá-lo, pois a imagem já existe no Docker-hub. Exemplo:
+
+
+
+auth-db:
+image: postgres:11
+container_name: auth-db
+restart: always
+networks:
+ - sales-network
+environment:
+ - POSTGRES_DB=auth-db
+ - POSTGRES_USER=admin
+ - POSTGRES_PASSWORD=123456
+ports:
+ - 5432:5432
+
+Agora, no caso da nossa aplicação (auth-api), a gente ainda não possui a imagem definida, então, a gente especifica onde que está o Dockerfile da aplicação com o comando build:, para que o Docker-compose realize a criação da imagem (internamente ele executa o comando docker imagem build -t auth-api .) e em sequência execute o container:
+
+
+
+auth-api:
+build: './auth-api'
+container_name: auth-api
+depends_on:
+ - auth-db
+ - product-api
+networks:
+ - sales-network
+environment:
+ - PORT=8080
+ - API_SECRET=YXV0aC1hcGktc2VjcmV0LWNvbnRhaW5lci0xMjM0NTY=
+ - DB_HOST=auth-db
+ - DB_NAME=auth-db
+ - DB_USER=admin
+ - DB_PASSWORD=123456
+ - DB_PORT=5432
+ - NODE_ENV=container
+ports:
+ - 8080:8080
+
+Caso você suba sua imagem do auth-api no Docker-Hub, você consegue executá-la no seu Docker-compose diretamente, sem a necessidade de especificar o Dockerfile, mas não fiz isso no curso por causa do tempo.
+
+
+
+E por quê utilizar o Docker-compose se ele faz o mesmo que a gente já faz ao executar manualmente os containers?
+
+
+
+Porque, se você tem 7 containers igual a gente neste projeto (auth-api, sales-api, product-api, auth-db, product-db, sales-db, sales-rabbit), então criar todos os containers na mãe especificando as variáveis de ambiente ficaria algo inviável, levaríamos muito tempo e a chance de errar algo ou deixar algo de fora é maior, é melhor especificar um arquivo docker-compose.yml com todas as configurações em um único lugar, e com apenas um comandinho a gente deixa pro docker-compose executar tudo pra gente:
+
+
+
+docker-compose up --build
+
+
+Espero que eu tenha ajudado e tirado suas dúvidas, e caso tenha mais alguma ou tenha achado a explicação confusa, eu tento explicar de uma maneira diferente!
+
+
+
+Valeu!

@@ -1,0 +1,7 @@
+FROM node:18
+WORKDIR .
+COPY package*.json ./
+RUN yarn --network-timeout=30000
+COPY . .
+EXPOSE 8082
+CMD ["node","app.js"]
